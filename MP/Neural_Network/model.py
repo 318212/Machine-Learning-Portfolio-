@@ -1,72 +1,29 @@
 import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
 
-class NeuralNetwork:
+from model import NeuralNetwork
+from utility import plot_loss
 
-    def __init__(self, input_size, hidden_size, output_size, lr=0.01):
-        self.lr = lr
+data = load_iris()
+X = data.data
+y = data.target
 
-        # weights for neural
-        self.W1 = np.random.randn(input_size, hidden_size) * 0.01
-        self.b1 = np.zeros((1, hidden_size))
+X = X[y != 2]
+y = y[y != 2]
+y = y.reshape(-1, 1)
 
-        self.W2 = np.random.randn(hidden_size, output_size) * 0.01
-        self.b2 = np.zeros((1, output_size))
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
-    # activation
-    # relu x2, sigmoid
-    def relu(self, Z):
-        return np.maximum(0, Z)
+model = NeuralNetwork(4, 10, 1, lr=0.1)
 
-    def relu_derivative(self, Z):
-        return (Z > 0).astype(float)
+model.fit(X_train, y_train, epochs=1000)
 
-    def sigmoid(self, Z):
-        return 1 / (1 + np.exp(-Z))
+preds = model.predict(X_test)
+accuracy = np.mean(preds == y_test)
 
-    def forward(self, X):
-        self.Z1 = X @ self.W1 + self.b1
-        self.A1 = self.relu(self.Z1)
+print("Accuracy:", accuracy)
 
-        self.Z2 = self.A1 @ self.W2 + self.b2
-        self.A2 = self.sigmoid(self.Z2)
-
-        return self.A2
-
-    def compute_loss(self, y, y_hat):
-        eps = 1e-9
-        return -np.mean(
-            y * np.log(y_hat + eps) +
-            (1 - y) * np.log(1 - y_hat + eps)
-        )
-
-    def backward(self, X, y):
-        m = X.shape[0]
-
-        dZ2 = self.A2 - y
-        dW2 = (1/m) * (self.A1.T @ dZ2)
-        db2 = (1/m) * np.sum(dZ2, axis=0, keepdims=True)
-
-        dA1 = dZ2 @ self.W2.T
-        dZ1 = dA1 * self.relu_derivative(self.Z1)
-
-        dW1 = (1/m) * (X.T @ dZ1)
-        db1 = (1/m) * np.sum(dZ1, axis=0, keepdims=True)
-
-        self.W2 -= self.lr * dW2
-        self.b2 -= self.lr * db2
-        self.W1 -= self.lr * dW1
-        self.b1 -= self.lr * db1
-
-    def fit(self, X, y, epochs=1000, verbose=True):
-        for i in range(epochs):
-            y_hat = self.forward(X)
-            loss = self.compute_loss(y, y_hat)
-
-            self.backward(X, y)
-
-            if verbose and i % 100 == 0:
-                print(f"Epoch {i}, Loss: {loss:.4f}")
-
-    def predict(self, X):
-        y_hat = self.forward(X)
-        return (y_hat > 0.5).astype(int)
+plot_loss(model.losses)
